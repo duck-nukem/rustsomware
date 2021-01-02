@@ -1,76 +1,104 @@
-extern crate bincode_aes;
-
-use std::fs::{read_dir, OpenOptions, File};
-use std::io::{Read, Write, Seek, SeekFrom};
 use std::env;
-use std::error::Error;
-use bincode_aes::BincodeCryptor;
+use std::fs;
+use std::fs::DirEntry;
 use std::process::exit;
 
+use encryptfile as ef;
+use rand::Rng;
+use rand::thread_rng;
 
 fn main() {
-    let human_readable_encryption_key = "abcdefghijklmnopqrstuvwxyz012345";
-    let key = bincode_aes::create_key(human_readable_encryption_key.as_bytes().to_vec()).unwrap();
-    let crypt = bincode_aes::with_key(key);
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
         exit_with_help();
     }
 
-    println!("Using key: {}", human_readable_encryption_key);
+    let human_readable_encryption_key = set_encryption_key(&args);
 
-    // TODO: test with non-text files (images, binaries, etc)
-    // TODO: allow specifying an encryption key, and default to a random one
+    // TODO: add recursion for files in nested folder structures
     let action = args[1].as_str();
     let working_directory = args[2].as_str();
-    let directory_entries = read_dir(working_directory).expect("Can't read");
+    let directory_entries = fs::read_dir(working_directory).expect("Can't read");
 
-    println!("{} -> {}", action, working_directory);
+    println!("Command: {} {}", action, working_directory);
     for entry in directory_entries {
-        let path = entry.unwrap().path();
-        let mut file = OpenOptions::new().read(true).write(true).open(path.as_os_str()).unwrap();
-        print!("> {:?}", path.as_os_str());
+        let dir_entry = entry.unwrap();
+        println!("{}::{}...", action, dir_entry.file_name().into_string().unwrap());
 
         if action == "encrypt" {
-            encrypt_file(&crypt, &mut file);
+            encrypt_file(&dir_entry, human_readable_encryption_key.clone());
         } else if action == "decrypt" {
-            decrypt_file(&crypt, &mut file);
+            decrypt_file(&dir_entry, human_readable_encryption_key.clone());
         }
 
+        print!("{}::{} OK", action, dir_entry.file_name().into_string().unwrap());
         println!();
     }
 }
 
-fn encrypt_file(crypt: &BincodeCryptor, original_file: &mut File) {
-    let mut buffer = vec![];
-    original_file.read_to_end(&mut buffer).unwrap();
+fn set_encryption_key(args: &Vec<String>) -> String {
+    let human_readable_encryption_key: String;
 
-    match crypt.serialize(&buffer) {
-        Ok(encrypted) => {
-            original_file.set_len(0).unwrap();
-            original_file.seek(SeekFrom::Start(0)).unwrap();
-            original_file.write_all(encrypted.as_slice()).unwrap();
-            print!(" ...done!");
-        }
-        Err(e) => eprintln!("Can't encrypt file, skipping. Error: {:?}", e),
+    if args.len() < 4 || args[3].clone() == "" {
+        human_readable_encryption_key = generate_random_password();
+    } else {
+        human_readable_encryption_key = args[3].clone();
     }
+
+    println!("Using key: {}", human_readable_encryption_key.clone());
+    return human_readable_encryption_key;
 }
 
-fn decrypt_file(crypt: &BincodeCryptor, encrypted_file: &mut File) {
-    let mut buffer = vec![];
-    encrypted_file.read_to_end(&mut buffer).unwrap();
+fn generate_random_password() -> String {
+    const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
+                            abcdefghijklmnopqrstuvwxyz\
+                            0123456789)(*&^%$#@!~";
+    const PASSWORD_LEN: usize = 32;
+    let mut rng = thread_rng();
 
-    let decrypted: Result<String, Box<dyn Error>> = crypt.deserialize(&mut buffer);
-    match decrypted {
-        Ok(original_content) => {
-            encrypted_file.set_len(0).unwrap();
-            encrypted_file.seek(SeekFrom::Start(0)).unwrap();
-            encrypted_file.write_all(&mut original_content.as_bytes()).unwrap();
-            print!(" ... done!")
-        }
-        Err(e) => eprintln!("Can't decrypt file, skipping. Error: {:?}", e),
-    }
+    let password: String = (0..PASSWORD_LEN)
+        .map(|_| {
+            let idx = rng.gen_range(0..CHARSET.len());
+            CHARSET[idx] as char
+        })
+        .collect();
+
+    return password;
+}
+
+fn encrypt_file(file: &DirEntry, password: String) {
+    let path = file.path().into_os_string().into_string().unwrap();
+    let temp_filename = &format!("{}_{}", "xxx", file.file_name().into_string().unwrap());
+
+    let mut encryption_config = ef::Config::new();
+    encryption_config.input_stream(ef::InputStream::File(path.clone()))
+        .output_stream(ef::OutputStream::File(temp_filename.to_owned()))
+        .add_output_option(ef::OutputOption::AllowOverwrite)
+        .initialization_vector(ef::InitializationVector::GenerateFromRng)
+        .password(ef::PasswordType::Text(password.to_owned(), ef::scrypt_defaults()))
+        .encrypt();
+    let _ = ef::process(&encryption_config).map_err(|e| panic!("error encrypting: {:?}", e));
+
+    fs::remove_file(path.clone()).unwrap();
+    fs::rename(temp_filename, path.clone()).unwrap();
+}
+
+fn decrypt_file(file: &DirEntry, password: String) {
+    let path = file.path().into_os_string().into_string().unwrap();
+    let temp_filename = &format!("{}_{}", "xxx", file.file_name().into_string().unwrap());
+
+    let mut decryption_config = ef::Config::new();
+    decryption_config.input_stream(ef::InputStream::File(path.clone()))
+        .output_stream(ef::OutputStream::File(temp_filename.to_owned()))
+        .add_output_option(ef::OutputOption::AllowOverwrite)
+        .password(ef::PasswordType::Text(password.to_owned(), ef::PasswordKeyGenMethod::ReadFromFile))
+        .decrypt();
+    // TODO: error handling for invalid key being used
+    let _ = ef::process(&decryption_config).map_err(|e| panic!("error decrypting: {:?}", e));
+
+    fs::remove_file(path.clone()).unwrap();
+    fs::rename(temp_filename, path.clone()).unwrap();
 }
 
 fn exit_with_help() {
