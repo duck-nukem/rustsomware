@@ -1,6 +1,9 @@
 use web_view::*;
+use serde::{Deserialize};
+use crate::{perform_action_on_directory, Action};
+use uuid::Uuid;
 
-pub fn render_ui(machine_id: &str) {
+pub fn render_ui(machine_id: &Uuid, encrypted_root_dir: &str) {
     let html_content = include_str!("../assets/ui.html");
 
     web_view::builder()
@@ -11,15 +14,23 @@ pub fn render_ui(machine_id: &str) {
         .debug(true)
         .user_data(())
         .invoke_handler(|webview, arg| {
-            match arg {
-                "render_machine_info" => webview.eval(&format!("renderMachineInfo('{}')", machine_id)),
-                "attempt_unlock" => {
-                    println!("Doing it ;)");
-                    webview.eval(&format!("showUnlockResults('{}')", "nope"))
+            use ClientCommand::*;
+
+            match serde_json::from_str(arg).unwrap() {
+                Init => webview.eval(&format!("renderMachineInfo('{}')", machine_id)),
+                Unlock { code } => {
+                    perform_action_on_directory(&code, &Action::Decrypt, encrypted_root_dir);
+                    webview.eval(&format!("showUnlockResults('{}')", "Done!"))
                 }
-                _ => unimplemented!(),
             }
         })
         .run()
         .unwrap();
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "cmd", rename_all = "camelCase")]
+enum ClientCommand {
+    Init,
+    Unlock { code: String },
 }

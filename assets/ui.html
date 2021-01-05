@@ -5,7 +5,8 @@
     <title>Title</title>
     <script>
         function attemptUnlock() {
-            external.invoke('attempt_unlock');
+            const unlockCode = document.querySelector('#unlock_code').value;
+            external.invoke(JSON.stringify({cmd: 'unlock', code: unlockCode || ""}));
         }
 
         function showUnlockResults(result) {
@@ -88,7 +89,7 @@
 </div>
 <p id="results"></p>
 <script>
-    external.invoke('render_machine_info');
+    external.invoke(JSON.stringify({cmd: 'init'}));
 </script>
 </body>
 </html>
