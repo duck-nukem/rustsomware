@@ -6,6 +6,7 @@ use std::process::exit;
 
 mod key_utils;
 mod encryption;
+mod ui;
 
 enum Action {
     Encrypt,
@@ -22,6 +23,9 @@ impl Display for Action {
 }
 
 fn main() {
+    let machine_id = "f8ed-fade-c30e";
+    ui::render_ui(machine_id);
+
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {

