@@ -19,7 +19,7 @@ fn main() {
     match action {
         "encrypt" => {
             let encryption_key = key_utils::set_encryption_key(&args);
-            if encryption_key.len() < 32 {
+            if encryption_key.len() != 32 {
                 eprintln!("Please provide a valid 32-long char-utf8 as a custom key");
                 exit_with_help();
             }
