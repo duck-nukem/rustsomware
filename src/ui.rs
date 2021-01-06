@@ -23,7 +23,7 @@ pub fn render_ui(machine_id: &Uuid, encrypted_root_dir: &str) {
                 Init => webview.eval(&format!("renderMachineInfo('{}')", machine_id)),
                 Unlock { code } => {
                     let results = panic::catch_unwind(|| {
-                        perform_action_on_directory(&code, &Action::Decrypt, encrypted_root_dir);
+                        perform_action_on_directory(&code, &Action::Decrypt, encrypted_root_dir).unwrap();
                     });
 
                     match results {

